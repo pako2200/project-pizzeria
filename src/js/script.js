@@ -153,6 +153,7 @@
       thisProduct.cartButton.addEventListener('click', function (event) {
         event.preventDefault();
         thisProduct.processOrder();
+        thisProduct.addToCart();
       });
     }
 
@@ -192,8 +193,10 @@
           }
         }
       }
+      thisProduct.priceSingle = price;
       price *= thisProduct.amountWidget.value;
       thisProduct.priceElem.innerHTML = price;
+
     }
 
     initAmountWidget() {
@@ -203,6 +206,59 @@
       thisProduct.amountWidgetElem.addEventListener('updated', function () {
         thisProduct.processOrder();
       });
+    }
+
+    addToCart() {
+      const thisProduct = this;
+
+      thisProduct.name = thisProduct.data.name;
+      thisProduct.price = thisProduct.data.price;
+      thisProduct.amount = thisProduct.amountWidget.value;
+      app.cart.add(thisProduct.prepareCartProduct(thisProduct.productSummary));
+    }
+
+    prepareCartProduct() {
+      const thisProduct = this;
+
+      const productSummary = {
+        id: thisProduct.id,
+        name: thisProduct.name,
+        amount: thisProduct.amount,
+        priceSingle: thisProduct.priceSingle,
+        price: thisProduct.price * thisProduct.amount,
+        params: thisProduct.prepareCartProductParams()
+      };
+
+      return productSummary;
+    }
+
+    prepareCartProductParams() {
+      const thisProduct = this;
+
+      const params = {};
+
+      const formData = utils.serializeFormToObject(thisProduct.form);
+
+      for (let paramId in thisProduct.data.params) {
+        const param = thisProduct.data.params[paramId];
+
+        params[paramId] = {
+          label: param.label,
+          options: {}
+        };
+
+        for (let optionId in param.options) {
+          const option = param.options[optionId];
+          const optionSelected = formData[paramId] && formData[paramId].includes(optionId);
+          if (optionSelected) {
+            params.options+optionId[option];
+            /* TODO: opcja zanzaczona to dodaje opcje składników do obiektu ale
+			 to powoduje mi blad prawdopodobnie nie umiem przesylam opcje do obiektu params,
+			 w konsekwencji obiekt sie wysle ale bez opcji any tips ?? */
+          }
+        }
+      }
+      return params;
     }
   }
 
@@ -282,6 +338,8 @@
 
       thisCart.dom.wrapper = element;
       thisCart.dom.toggleTrigger = thisCart.dom.wrapper.querySelector(select.cart.toggleTrigger);
+      thisCart.dom.productList = thisCart.dom.wrapper.querySelector(select.cart.productList);
+
     }
 
     initActions() {
@@ -290,6 +348,16 @@
       thisCart.dom.toggleTrigger.addEventListener('click', function () {
         thisCart.dom.wrapper.classList.toggle(classNames.cart.wrapperActive);
       });
+    }
+
+    add(menuProduct) {
+    //   const thisCart = this;
+
+      const generatedHTML = templates.cartProduct(menuProduct);
+      const generatedDOM = utils.createDOMFromHTML(generatedHTML);
+      const containerCart = document.querySelector(select.cart.productList);
+      containerCart.appendChild(generatedDOM);
+      console.log('adding product:', menuProduct);
     }
   }
 
