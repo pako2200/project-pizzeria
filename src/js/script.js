@@ -196,7 +196,6 @@
       thisProduct.priceSingle = price;
       price *= thisProduct.amountWidget.value;
       thisProduct.priceElem.innerHTML = price;
-
     }
 
     initAmountWidget() {
@@ -251,10 +250,7 @@
           const option = param.options[optionId];
           const optionSelected = formData[paramId] && formData[paramId].includes(optionId);
           if (optionSelected) {
-            params.options+optionId[option];
-            /* TODO: opcja zanzaczona to dodaje opcje składników do obiektu ale
-			 to powoduje mi blad prawdopodobnie nie umiem przesylam opcje do obiektu params,
-			 w konsekwencji obiekt sie wysle ale bez opcji any tips ?? */
+            params[paramId].options[optionId] = option.label;
           }
         }
       }
@@ -316,7 +312,9 @@
     announce() {
       const thisWidget = this;
 
-      const event = new Event('updated');
+      const event = new CustomEvent('updated', {
+        bubbles: true
+      });
       thisWidget.element.dispatchEvent(event);
     }
   }
@@ -337,8 +335,12 @@
       thisCart.dom = {};
 
       thisCart.dom.wrapper = element;
+      thisCart.dom.totalPrice = thisCart.dom.wrapper.querySelector(select.cart.totalPrice);
       thisCart.dom.toggleTrigger = thisCart.dom.wrapper.querySelector(select.cart.toggleTrigger);
       thisCart.dom.productList = thisCart.dom.wrapper.querySelector(select.cart.productList);
+      thisCart.dom.deliveryFee = thisCart.dom.wrapper.querySelector(select.cart.deliveryFee);
+      thisCart.dom.subtotalPrice = thisCart.dom.wrapper.querySelector(select.cart.subtotalPrice);
+      thisCart.dom.totalNumber = thisCart.dom.wrapper.querySelector(select.cart.totalNumber);
 
     }
 
@@ -351,13 +353,77 @@
     }
 
     add(menuProduct) {
-    //   const thisCart = this;
+      const thisCart = this;
 
       const generatedHTML = templates.cartProduct(menuProduct);
       const generatedDOM = utils.createDOMFromHTML(generatedHTML);
       const containerCart = document.querySelector(select.cart.productList);
       containerCart.appendChild(generatedDOM);
-      console.log('adding product:', menuProduct);
+
+      thisCart.products.push(new CartProduct(menuProduct, generatedDOM));
+      thisCart.update();
+    }
+    update() {
+      const thisCart = this;
+
+      const deliveryFee = settings.cart.defaultDeliveryFee;
+
+      thisCart.totalNumber = 0;
+      thisCart.subtotalPrice = 0;
+
+      for(let product of thisCart.products) {
+        thisCart.totalNumber += product.amountWidget.value;
+        thisCart.subtotalPrice += product.price;
+        console.log('totalNumber', thisCart.totalNumber);
+        console.log('subTotalPrice', thisCart.subtotalPrice);
+      }
+      //TODO: if totalPrice == 0 then delivery = 0
+
+      thisCart.totalPrice = thisCart.subtotalPrice + deliveryFee;
+      thisCart.dom.totalPrice.innerHTML = thisCart.totalPrice;
+      thisCart.dom.subtotalPrice.innerHTML = thisCart.subtotalPrice;
+      thisCart.dom.deliveryFee.innerHTML = deliveryFee;
+      thisCart.dom.totalNumber.innerHTML = thisCart.totalNumber;
+      console.log(thisCart.dom.totalPrice);
+    }
+  }
+
+  class CartProduct {
+    constructor(menuProduct, element) {
+      const thisCartProduct = this;
+
+      thisCartProduct.id = menuProduct.id;
+      thisCartProduct.name = menuProduct.name;
+      thisCartProduct.price = menuProduct.price;
+      thisCartProduct.priceSingle = menuProduct.priceSingle;
+      thisCartProduct.amount = menuProduct.amount;
+      thisCartProduct.params = menuProduct.params;
+      thisCartProduct.getElements(element);
+      thisCartProduct.initAmountWidget();
+    }
+
+    getElements(element) {
+      const thisCartProduct = this;
+
+      thisCartProduct.dom = {};
+
+      thisCartProduct.dom.wrapper = element;
+
+      thisCartProduct.dom.amountWidget = thisCartProduct.dom.wrapper.querySelector(select.cartProduct.amountWidget);
+      thisCartProduct.dom.price = thisCartProduct.dom.wrapper.querySelector(select.cartProduct.price);
+      thisCartProduct.dom.edit = thisCartProduct.dom.wrapper.querySelector(select.cartProduct.edit);
+      thisCartProduct.dom.remove = thisCartProduct.dom.wrapper.querySelector(select.cartProduct.remove);
+    }
+
+    initAmountWidget() {
+      const thisCartProduct = this;
+
+      thisCartProduct.amountWidget = new AmountWidget(thisCartProduct.dom.amountWidget);
+      thisCartProduct.dom.amountWidget.addEventListener('updated', function () {
+        thisCartProduct.amount = thisCartProduct.amountWidget.value;
+        thisCartProduct.price = thisCartProduct.priceSingle * thisCartProduct.amount;
+        thisCartProduct.dom.price.innerHTML = thisCartProduct.price;
+      });
     }
   }
 
